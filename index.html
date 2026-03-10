@@ -85,21 +85,21 @@ function genMac(key,base){
     'echo "  完成"',
     'echo ""',
     '',
-    'echo "[3/3] 配置并启动 OpenClaw..."',
-    'if command -v openclaw &>/dev/null; then',
-    '  openclaw config set models.providers.openai.apiKey "'+key+'" 2>/dev/null',
+    'echo "[3/3] 写入配置并启动..."',
+    'source ~/.zshrc 2>/dev/null; source ~/.bashrc 2>/dev/null',
+    'export PATH="$HOME/.local/bin:$HOME/.openclaw/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node/ 2>/dev/null|tail -1)/bin:/usr/local/bin:$PATH"',
+    'mkdir -p "$HOME/.openclaw"',
+    'openclaw config set models.providers.openai.apiKey "'+key+'" 2>/dev/null',
   ]);
-  if(base) s.push('  openclaw config set models.providers.openai.baseUrl "'+base+'" 2>/dev/null');
+  if(base) s.push('openclaw config set models.providers.openai.baseUrl "'+base+'" 2>/dev/null');
   s=s.concat([
-    '  openclaw onboard --install-daemon 2>/dev/null || {',
-    '    echo ""',
-    '    echo "  OpenClaw 已安装完成！"',
-    '    echo "  请打开新终端运行: openclaw onboard"',
-    '  }',
-    'else',
-    '  echo "  安装脚本执行完毕，请打开新终端运行:"',
-    '  echo "    openclaw onboard"',
-    'fi',
+    'openclaw daemon install 2>/dev/null',
+    'openclaw start 2>/dev/null',
+    'echo ""',
+    'echo "========================================"',
+    'echo "  OpenClaw 部署完成！"',
+    'echo "  API Key 和中转地址已自动配置"',
+    'echo "========================================"',
   ]);
   return s.join('\n');
 }
@@ -126,16 +126,16 @@ function genWin(key,base){
   s=s.concat([
     'echo   完成','echo.',
     '',
-    'echo [3/3] 配置 OpenClaw...',
+    'echo [3/3] 写入配置并启动...',
     'openclaw config set models.providers.openai.apiKey "'+key+'" 2>nul',
   ]);
   if(base) s.push('openclaw config set models.providers.openai.baseUrl "'+base+'" 2>nul');
   s=s.concat([
-    'openclaw onboard --install-daemon 2>nul',
+    'openclaw daemon install 2>nul',
+    'openclaw start 2>nul',
     'echo.','echo ========================================',
-    'echo   安装完成！','echo ========================================',
-    'echo.','echo   如未自动启动，请打开新命令行运行:',
-    'echo     openclaw onboard','echo.',
+    'echo   部署完成！API Key 和中转地址已自动配置',
+    'echo ========================================','echo.',
     'pause',
   ]);
   return s.join('\r\n');
