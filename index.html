@@ -33,7 +33,7 @@ input::placeholder{color:#475569}
 <body>
 <div class="card">
   <h1>🦞 OpenClaw <span>一键部署</span></h1>
-  <p class="sub">输入 API Key，全自动安装，无需 Docker</p>
+  <p class="sub">输入 API Key，全自动安装 OpenClaw（基于 Node.js，速度快）</p>
   <p class="os-tag" id="osTag"></p>
   <div class="fg">
     <label>API Key</label>
@@ -48,57 +48,11 @@ input::placeholder{color:#475569}
   <div id="guide" class="guide"></div>
 </div>
 <script>
-var isMac = /Mac/.test(navigator.platform);
-document.getElementById('osTag').textContent = isMac ? '🍎 检测到 macOS' : '🪟 检测到 Windows';
-
-function copyCmd(btn) {
-  var text = document.getElementById('mac-cmd').textContent;
-  navigator.clipboard.writeText(text);
-  btn.textContent = '已复制!';
-  setTimeout(function(){ btn.textContent = '复制'; }, 2000);
-}
-
-function generate() {
-  var msg = document.getElementById('msg');
-  var guide = document.getElementById('guide');
-  var key = document.getElementById('apikey').value.trim();
-  var base = document.getElementById('baseurl').value.trim().replace(/\/$/,'');
-  if (!key) { msg.className='msg err'; msg.textContent='请输入 API Key'; return; }
-  var openaiBase = base || 'https://api.openai.com/v1';
-  var script, filename, guideHtml;
-  if (isMac) {
-    script = genMac(key, openaiBase);
-    var encoded = btoa(unescape(encodeURIComponent(script)));
-    var cmd = 'echo ' + encoded + ' | base64 -d > /tmp/oc-install.sh && bash /tmp/oc-install.sh';
-    guideHtml = '<h3>只需三步</h3><ol>' +
-      '<li>按 <b>Command+空格</b>，输入 <b>Terminal</b>，回车打开终端</li>' +
-      '<li>点下面的"复制"按钮</li>' +
-      '<li>在终端里 <b>Command+V</b> 粘贴，按回车</li></ol>' +
-      '<div class="cmd-box"><span id="mac-cmd" style="user-select:all;overflow:hidden;max-height:60px">' + cmd + '</span>' +
-      '<button onclick="copyCmd(this)">复制</button></div>' +
-      '<p class="tip">全自动安装所有依赖，完成后浏览器自动打开 http://localhost:8080</p>';
-    guide.innerHTML = guideHtml;
-    guide.style.display = 'block';
-    msg.className='msg ok'; msg.textContent='命令已生成，复制到终端即可!';
-  } else {
-    script = genWin(key, openaiBase);
-    filename = 'install-openclaw.bat';
-    guideHtml = '<h3>只需两步</h3><ol>' +
-      '<li>找到下载的 <b>install-openclaw.bat</b></li>' +
-      '<li>双击运行（如弹出安全提示，点"更多信息"→"仍要运行"）</li>' +
-      '<li>等待安装完成，浏览器自动打开</li></ol>' +
-      '<p class="tip">首次安装约需 2-5 分钟，请保持网络畅通</p>';
-    var blob = new Blob([script], {type:'application/octet-stream'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = filename; a.click();
-    guide.innerHTML = guideHtml;
-    guide.style.display = 'block';
-    msg.className='msg ok'; msg.textContent='安装文件已下载!';
-  }
-}
-
-function genMac(key, base) {
-  return [
+var isMac=/Mac/.test(navigator.platform);
+document.getElementById('osTag').textContent=isMac?'🍎 检测到 macOS':'🪟 检测到 Windows';
+function copyCmd(btn){var t=document.getElementById('mac-cmd').textContent;navigator.clipboard.writeText(t);btn.textContent='已复制!';setTimeout(function(){btn.textContent='复制'},2000)}
+function genMac(key,base){
+  var s=[
     '#!/bin/bash',
     'echo ""',
     'echo "========================================"',
@@ -107,101 +61,116 @@ function genMac(key, base) {
     'echo "========================================"',
     'echo ""',
     '',
-    'export PATH="$HOME/.local/bin:$PATH"',
-    'ARCH=$(uname -m)',
-    '',
-    'echo "[1/5] 安装 uv 包管理器..."',
-    'if ! command -v uv &>/dev/null; then',
-    '  curl -LsSf https://astral.sh/uv/install.sh | sh',
-    '  export PATH="$HOME/.local/bin:$PATH"',
-    'fi',
-    'echo "  uv 已就绪"',
+    'echo "[1/3] 安装 OpenClaw（含 Node.js）..."',
+    'curl -fsSL https://openclaw.ai/install.sh | bash',
+    'export PATH="$HOME/.local/bin:$HOME/.openclaw/bin:/usr/local/bin:$PATH"',
+    'source ~/.zshrc 2>/dev/null; source ~/.bashrc 2>/dev/null',
+    'echo "  安装完成"',
     'echo ""',
     '',
-    'echo "[2/5] 配置环境变量..."',
-    'export OPENAI_API_KEY="' + key + '"',
-    'export OPENAI_API_BASE_URL="' + base + '"',
-    'export DATA_DIR="$HOME/.open-webui"',
-    'grep -q "OPENAI_API_KEY" ~/.zshrc 2>/dev/null || {',
-    '  echo \'export OPENAI_API_KEY="' + key + '"\' >> ~/.zshrc',
-    '  echo \'export OPENAI_API_BASE_URL="' + base + '"\' >> ~/.zshrc',
+    'echo "[2/3] 配置 API Key..."',
+    'export OPENAI_API_KEY="'+key+'"',
+  ];
+  if(base) s.push('export OPENAI_API_BASE_URL="'+base+'"');
+  s=s.concat([
+    'PROFILE="$HOME/.zshrc"',
+    '[ -f "$PROFILE" ] || PROFILE="$HOME/.bashrc"',
+    'grep -q "OPENAI_API_KEY" "$PROFILE" 2>/dev/null || {',
+    '  echo >> "$PROFILE"',
+    '  echo \'export OPENAI_API_KEY="'+key+'"\' >> "$PROFILE"',
+  ]);
+  if(base) s.push('  echo \'export OPENAI_API_BASE_URL="'+base+'"\' >> "$PROFILE"');
+  s=s.concat([
     '}',
     'echo "  完成"',
     'echo ""',
     '',
-    'if [ "$ARCH" = "arm64" ]; then',
-    '  echo "[3/5] Apple Silicon，跳过兼容处理"',
-    '  echo "[4/5] 跳过"',
-    '  echo ""',
-    '  echo "[5/5] 启动 OpenClaw..."',
-    '  echo "  首次启动需下载依赖，可能需要几分钟..."',
-    '  echo ""',
-    '  (sleep 30 && open "http://localhost:8080/") &',
-    '  DATA_DIR="$HOME/.open-webui" uvx --python 3.11 open-webui@latest serve',
-    'else',
-    '  echo "[3/5] 创建 Python 环境..."',
-    '  UV_VENV_CLEAR=1 uv venv --python 3.11 "$HOME/.open-webui-env"',
-    '  source "$HOME/.open-webui-env/bin/activate"',
-    '  echo "  完成"',
-    '  echo ""',
-    '',
-    '  echo "[4/5] 安装依赖（首次较慢，请耐心等待）..."',
-    '  echo "  正在安装 onnxruntime..."',
-    '  uv pip install "onnxruntime<1.20"',
-    '  echo "  正在安装 open-webui 及全部依赖..."',
-    '  uv pip install open-webui --only-binary av --resolution lowest-direct || {',
+    'echo "[3/3] 配置并启动 OpenClaw..."',
+    'if command -v openclaw &>/dev/null; then',
+    '  openclaw config set models.providers.openai.apiKey "'+key+'" 2>/dev/null',
+  ]);
+  if(base) s.push('  openclaw config set models.providers.openai.baseUrl "'+base+'" 2>/dev/null');
+  s=s.concat([
+    '  openclaw onboard --install-daemon 2>/dev/null || {',
     '    echo ""',
-    '    echo "  [!] av 预编译包不可用，改用无语音模式安装..."',
-    '    uv pip install open-webui --no-build --resolution lowest-direct || {',
-    '      echo "  [!] 部分依赖无预编译包，逐步安装中..."',
-    '      uv pip install open-webui --no-deps',
-    '      uv pip install --no-build typer fastapi uvicorn pydantic aiohttp requests',
-    '      uv pip install --no-build sqlalchemy alembic passlib bcrypt PyJWT',
-    '      uv pip install --no-build python-multipart jinja2 markdown beautifulsoup4',
-    '      uv pip install --no-build chromadb langchain langchain-community',
-    '      uv pip install --no-build boto3 redis websocket-client httpx',
-    '    }',
+    '    echo "  OpenClaw 已安装完成！"',
+    '    echo "  请打开新终端运行: openclaw onboard"',
     '  }',
-    '  echo "  安装完成!"',
-    '  echo ""',
-    '',
-    '  echo "[5/5] 启动 OpenClaw..."',
-    '  echo ""',
-    '  (sleep 10 && open "http://localhost:8080/") &',
-    '  DATA_DIR="$HOME/.open-webui" "$HOME/.open-webui-env/bin/open-webui" serve',
+    'else',
+    '  echo "  安装脚本执行完毕，请打开新终端运行:"',
+    '  echo "    openclaw onboard"',
     'fi',
-  ].join('\n');
+  ]);
+  return s.join('\n');
 }
-
-function genWin(key, base) {
-  return [
+function genWin(key,base){
+  var s=[
     '@echo off','chcp 65001 >nul','title OpenClaw 一键部署',
     'echo.','echo ========================================',
     'echo   OpenClaw 一键部署 (Windows)',
-    'echo   无需 Docker，轻量安装',
+    'echo   全自动安装，请勿关闭此窗口',
     'echo ========================================','echo.',
     '',
-    'echo [1/3] 安装 uv 包管理器...',
-    'where uv >nul 2>nul',
-    'if %errorlevel% equ 0 (','  echo   uv 已安装','  goto :uv_ok',')',
-    'powershell -ExecutionPolicy ByPass -Command "irm https://astral.sh/uv/install.ps1 | iex"',
-    'set "PATH=%USERPROFILE%\\.local\\bin;%PATH%"',
-    ':uv_ok','echo   完成','echo.',
+    'echo [1/3] 安装 OpenClaw（含 Node.js）...',
+    'powershell -ExecutionPolicy Bypass -Command "iwr -useb https://openclaw.ai/install.ps1 | iex"',
+    'echo   安装完成','echo.',
     '',
     'echo [2/3] 配置环境变量...',
-    'setx OPENAI_API_KEY "' + key + '" >nul',
-    'setx OPENAI_API_BASE_URL "' + base + '" >nul',
-    'set "OPENAI_API_KEY=' + key + '"',
-    'set "OPENAI_API_BASE_URL=' + base + '"',
-    'set "DATA_DIR=%USERPROFILE%\\.open-webui"',
+    'setx OPENAI_API_KEY "'+key+'" >nul',
+    'set "OPENAI_API_KEY='+key+'"',
+  ];
+  if(base){
+    s.push('setx OPENAI_API_BASE_URL "'+base+'" >nul');
+    s.push('set "OPENAI_API_BASE_URL='+base+'"');
+  }
+  s=s.concat([
     'echo   完成','echo.',
     '',
-    'echo [3/3] 启动 OpenClaw...',
-    'echo   首次启动需下载依赖，请耐心等待...',
-    'echo   启动后浏览器将自动打开 http://localhost:8080','echo.',
-    'start /b cmd /c "timeout /t 20 /nobreak >nul && start http://localhost:8080/"',
-    'uvx --python 3.11 open-webui@latest serve',
-  ].join('\r\n');
+    'echo [3/3] 配置 OpenClaw...',
+    'openclaw config set models.providers.openai.apiKey "'+key+'" 2>nul',
+  ]);
+  if(base) s.push('openclaw config set models.providers.openai.baseUrl "'+base+'" 2>nul');
+  s=s.concat([
+    'openclaw onboard --install-daemon 2>nul',
+    'echo.','echo ========================================',
+    'echo   安装完成！','echo ========================================',
+    'echo.','echo   如未自动启动，请打开新命令行运行:',
+    'echo     openclaw onboard','echo.',
+    'pause',
+  ]);
+  return s.join('\r\n');
+}
+function generate(){
+  var msg=document.getElementById('msg'),guide=document.getElementById('guide');
+  var key=document.getElementById('apikey').value.trim();
+  var base=document.getElementById('baseurl').value.trim().replace(/\/$/,'');
+  if(!key){msg.className='msg err';msg.textContent='请输入 API Key';return}
+  if(isMac){
+    var script=genMac(key,base);
+    var encoded=btoa(unescape(encodeURIComponent(script)));
+    var cmd='echo '+encoded+' | base64 -d > /tmp/oc-install.sh && bash /tmp/oc-install.sh';
+    guide.innerHTML='<h3>只需三步</h3><ol>'+
+      '<li>按 <b>Command+空格</b>，输入 <b>Terminal</b>，回车打开终端</li>'+
+      '<li>点下面的"复制"按钮</li>'+
+      '<li>在终端里 <b>Command+V</b> 粘贴，按回车</li></ol>'+
+      '<div class="cmd-box"><span id="mac-cmd" style="user-select:all;overflow:hidden;max-height:60px">'+cmd+'</span>'+
+      '<button onclick="copyCmd(this)">复制</button></div>'+
+      '<p class="tip">全自动安装 Node.js + OpenClaw，比 Python 方案快很多</p>';
+    guide.style.display='block';
+    msg.className='msg ok';msg.textContent='命令已生成，复制到终端即可!';
+  }else{
+    var script=genWin(key,base);
+    var blob=new Blob([script],{type:'application/octet-stream'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='install-openclaw.bat';a.click();
+    guide.innerHTML='<h3>只需两步</h3><ol>'+
+      '<li>找到下载的 <b>install-openclaw.bat</b></li>'+
+      '<li>双击运行（如弹出安全提示，点"更多信息"→"仍要运行"）</li>'+
+      '<li>等待安装完成</li></ol>'+
+      '<p class="tip">首次安装约需 1-3 分钟，比旧版快很多</p>';
+    guide.style.display='block';
+    msg.className='msg ok';msg.textContent='安装文件已下载!';
+  }
 }
 </script>
 </body>
