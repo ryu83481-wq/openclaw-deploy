@@ -152,7 +152,7 @@ function genMac(key, base) {
     'if [ "$ARCH" = "arm64" ]; then',
     '  DATA_DIR="$HOME/.open-webui" uvx --python 3.11 open-webui@latest serve',
     'else',
-    '  uv venv --python 3.11 "$HOME/.open-webui-env"',
+    '  UV_VENV_CLEAR=1 uv venv --python 3.11 "$HOME/.open-webui-env"',
     '  source "$HOME/.open-webui-env/bin/activate"',
     '  uv pip install "onnxruntime<1.20"',
     '  uv pip install "av" --only-binary :all: 2>/dev/null || uv pip install "av"',
