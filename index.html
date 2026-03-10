@@ -61,50 +61,70 @@ function genMac(antKey,codexKey,base){
     'echo ""',
     'echo "========================================"',
     'echo "  OpenClaw 一键部署 (macOS)"',
-    'echo "  全自动安装+配置，请勿关闭此窗口"',
     'echo "========================================"',
     'echo ""',
     '',
-    'echo "[1/3] 安装 OpenClaw..."',
+    '# 先设环境变量，安装脚本可能会读取',
+    'export ANTHROPIC_API_KEY="'+antKey+'"',
+  ];
+  if(codexKey) s.push('export CODEX_API_KEY="'+codexKey+'"');
+  if(base) s.push('export ANTHROPIC_BASE_URL="'+base+'"');
+  s=s.concat([
+    '',
+    'echo "[1/4] 安装 OpenClaw..."',
     'curl -fsSL https://openclaw.ai/install.sh | bash',
     'source ~/.zshrc 2>/dev/null; source ~/.bashrc 2>/dev/null',
     'export PATH="$HOME/.local/bin:$HOME/.openclaw/bin:/usr/local/bin:$PATH"',
     'echo "  完成"',
     'echo ""',
     '',
-    'echo "[2/3] 写入 API Key 到 auth-profiles.json..."',
-    'AUTH_DIR="$HOME/.openclaw/agents/main/agent"',
-    'mkdir -p "$AUTH_DIR"',
-    'cat > "$AUTH_DIR/auth-profiles.json" << \'AUTHEOF\'',
-    '{',
-    '  "anthropic": {',
-    '    "apiKey": "'+antKey+'"'+(base?',':''),
-  ];
-  if(base) s.push('    "baseUrl": "'+base+'"');
-  s.push('  }');
-  if(codexKey){
-    s=s.concat([
-      '  ,"codex": {',
-      '    "apiKey": "'+codexKey+'"',
-      '  }',
-    ]);
-  }
+    'echo "[2/4] 写入环境变量到 shell 配置..."',
+    'PROFILE="$HOME/.zshrc"',
+    '[ -f "$PROFILE" ] || PROFILE="$HOME/.bashrc"',
+    '# 清理旧的错误配置',
+    'sed -i.bak "/OPENAI_API_KEY/d" "$PROFILE" 2>/dev/null',
+    'sed -i.bak "/OPENAI_API_BASE_URL/d" "$PROFILE" 2>/dev/null',
+    '# 写入正确的环境变量',
+    'echo >> "$PROFILE"',
+    'echo \'# OpenClaw API 配置\' >> "$PROFILE"',
+    'echo \'export ANTHROPIC_API_KEY="'+antKey+'"\' >> "$PROFILE"',
+  ]);
+  if(codexKey) s.push('echo \'export CODEX_API_KEY="'+codexKey+'"\' >> "$PROFILE"');
+  if(base) s.push('echo \'export ANTHROPIC_BASE_URL="'+base+'"\' >> "$PROFILE"');
   s=s.concat([
-    '}',
-    'AUTHEOF',
-    'echo "  已写入: $AUTH_DIR/auth-profiles.json"',
+    'source "$PROFILE"',
+    'echo "  完成"',
     'echo ""',
     '',
-    'echo "[3/3] 启动 OpenClaw..."',
-    'export ANTHROPIC_API_KEY="'+antKey+'"',
+    'echo "[3/4] 写入 auth-profiles.json..."',
+    'AUTH_DIR="$HOME/.openclaw/agents/main/agent"',
+    'mkdir -p "$AUTH_DIR"',
+  ]);
+  // Build the JSON content for auth-profiles.json
+  var json = '{\\"anthropic\\":{\\"apiKey\\":\\"'+antKey+'\\"';
+  if(base) json += ',\\"baseUrl\\":\\"'+base+'\\"';
+  json += '}';
+  if(codexKey) json += ',\\"codex\\":{\\"apiKey\\":\\"'+codexKey+'\\"}';
+  json += '}';
+  s=s.concat([
+    'echo "'+json+'" | python3 -m json.tool > "$AUTH_DIR/auth-profiles.json" 2>/dev/null || echo \''+json.replace(/\\"/g,'"')+'\' > "$AUTH_DIR/auth-profiles.json"',
+    'cat "$AUTH_DIR/auth-profiles.json"',
+    'echo ""',
+    'echo "  完成"',
+    'echo ""',
+    '',
+    'echo "[4/4] 启动 OpenClaw..."',
+    'openclaw gateway stop 2>/dev/null',
+    'sleep 1',
     'openclaw daemon install 2>/dev/null',
     'openclaw gateway start 2>/dev/null &',
-    'sleep 2',
-    'openclaw tui 2>/dev/null || {',
-    '  echo ""',
-    '  echo "  OpenClaw 已安装并配置完成！"',
-    '  echo "  打开新终端运行: openclaw tui"',
-    '}',
+    'sleep 3',
+    'echo ""',
+    'echo "========================================"',
+    'echo "  部署完成！正在打开 OpenClaw..."',
+    'echo "========================================"',
+    'echo ""',
+    'openclaw tui || echo "  请打开新终端运行: openclaw tui"',
   ]);
   return s.join('\n');
 }
@@ -118,29 +138,42 @@ function genWin(antKey,codexKey,base){
     '@echo off','chcp 65001 >nul','title OpenClaw 一键部署',
     'echo.','echo ========================================',
     'echo   OpenClaw 一键部署 (Windows)',
-    'echo   全自动安装+配置，请勿关闭此窗口',
     'echo ========================================','echo.',
     '',
-    'echo [1/3] 安装 OpenClaw...',
+    'echo [1/4] 设置环境变量...',
+    'setx ANTHROPIC_API_KEY "'+antKey+'" >nul',
+    'set "ANTHROPIC_API_KEY='+antKey+'"',
+  ];
+  if(codexKey){
+    s.push('setx CODEX_API_KEY "'+codexKey+'" >nul');
+    s.push('set "CODEX_API_KEY='+codexKey+'"');
+  }
+  if(base){
+    s.push('setx ANTHROPIC_BASE_URL "'+base+'" >nul');
+    s.push('set "ANTHROPIC_BASE_URL='+base+'"');
+  }
+  s=s.concat([
+    'echo   完成','echo.',
+    '',
+    'echo [2/4] 安装 OpenClaw...',
     'powershell -ExecutionPolicy Bypass -Command "iwr -useb https://openclaw.ai/install.ps1 | iex"',
     'echo   完成','echo.',
     '',
-    'echo [2/3] 写入 API Key...',
+    'echo [3/4] 写入 auth-profiles.json...',
     'set "AUTH_DIR=%USERPROFILE%\\.openclaw\\agents\\main\\agent"',
     'if not exist "%AUTH_DIR%" mkdir "%AUTH_DIR%"',
     'echo '+authJson+' > "%AUTH_DIR%\\auth-profiles.json"',
-    'setx ANTHROPIC_API_KEY "'+antKey+'" >nul',
     'echo   完成','echo.',
     '',
-    'echo [3/3] 启动 OpenClaw...',
+    'echo [4/4] 启动 OpenClaw...',
+    'openclaw gateway stop 2>nul',
+    'timeout /t 1 /nobreak >nul',
     'openclaw daemon install 2>nul',
     'start "" openclaw gateway start',
-    'timeout /t 2 /nobreak >nul',
+    'timeout /t 3 /nobreak >nul',
     'openclaw tui',
-    'echo.','echo ========================================',
-    'echo   部署完成！','echo ========================================',
     'pause',
-  ];
+  ]);
   return s.join('\r\n');
 }
 function generate(){
