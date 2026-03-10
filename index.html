@@ -33,15 +33,19 @@ input::placeholder{color:#475569}
 <body>
 <div class="card">
   <h1>🦞 OpenClaw <span>一键部署</span></h1>
-  <p class="sub">输入 API Key，全自动安装 OpenClaw（基于 Node.js，速度快）</p>
+  <p class="sub">填好 Key，复制命令到终端，全自动安装+配置</p>
   <p class="os-tag" id="osTag"></p>
   <div class="fg">
-    <label>API Key</label>
-    <input type="password" id="apikey" placeholder="输入你的 API Key">
+    <label>Anthropic API Key</label>
+    <input type="password" id="antkey" placeholder="sk-ant-...">
+  </div>
+  <div class="fg">
+    <label>Codex API Key <span style="color:#475569;font-weight:400">（可选）</span></label>
+    <input type="password" id="codexkey" placeholder="输入 Codex Key">
   </div>
   <div class="fg">
     <label>中转地址 <span style="color:#475569;font-weight:400">（可选）</span></label>
-    <input type="text" id="baseurl" placeholder="例如 https://api.example.com/v1">
+    <input type="text" id="baseurl" placeholder="例如 https://api.example.com">
   </div>
   <button class="btn" onclick="generate()">🚀 一键部署</button>
   <p id="msg" class="msg"></p>
@@ -51,123 +55,122 @@ input::placeholder{color:#475569}
 var isMac=/Mac/.test(navigator.platform);
 document.getElementById('osTag').textContent=isMac?'🍎 检测到 macOS':'🪟 检测到 Windows';
 function copyCmd(btn){var t=document.getElementById('mac-cmd').textContent;navigator.clipboard.writeText(t);btn.textContent='已复制!';setTimeout(function(){btn.textContent='复制'},2000)}
-function genMac(key,base){
+function genMac(antKey,codexKey,base){
   var s=[
     '#!/bin/bash',
     'echo ""',
     'echo "========================================"',
     'echo "  OpenClaw 一键部署 (macOS)"',
-    'echo "  全自动安装，请勿关闭此窗口"',
+    'echo "  全自动安装+配置，请勿关闭此窗口"',
     'echo "========================================"',
     'echo ""',
     '',
-    'echo "[1/3] 安装 OpenClaw（含 Node.js）..."',
+    'echo "[1/3] 安装 OpenClaw..."',
     'curl -fsSL https://openclaw.ai/install.sh | bash',
-    'export PATH="$HOME/.local/bin:$HOME/.openclaw/bin:/usr/local/bin:$PATH"',
     'source ~/.zshrc 2>/dev/null; source ~/.bashrc 2>/dev/null',
-    'echo "  安装完成"',
-    'echo ""',
-    '',
-    'echo "[2/3] 配置 API Key..."',
-    'export OPENAI_API_KEY="'+key+'"',
-  ];
-  if(base) s.push('export OPENAI_API_BASE_URL="'+base+'"');
-  s=s.concat([
-    'PROFILE="$HOME/.zshrc"',
-    '[ -f "$PROFILE" ] || PROFILE="$HOME/.bashrc"',
-    'grep -q "OPENAI_API_KEY" "$PROFILE" 2>/dev/null || {',
-    '  echo >> "$PROFILE"',
-    '  echo \'export OPENAI_API_KEY="'+key+'"\' >> "$PROFILE"',
-  ]);
-  if(base) s.push('  echo \'export OPENAI_API_BASE_URL="'+base+'"\' >> "$PROFILE"');
-  s=s.concat([
-    '}',
+    'export PATH="$HOME/.local/bin:$HOME/.openclaw/bin:/usr/local/bin:$PATH"',
     'echo "  完成"',
     'echo ""',
     '',
-    'echo "[3/3] 写入配置并启动..."',
-    'source ~/.zshrc 2>/dev/null; source ~/.bashrc 2>/dev/null',
-    'export PATH="$HOME/.local/bin:$HOME/.openclaw/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node/ 2>/dev/null|tail -1)/bin:/usr/local/bin:$PATH"',
-    'mkdir -p "$HOME/.openclaw"',
-    'openclaw config set models.providers.openai.apiKey "'+key+'" 2>/dev/null',
-  ]);
-  if(base) s.push('openclaw config set models.providers.openai.baseUrl "'+base+'" 2>/dev/null');
+    'echo "[2/3] 写入 API Key 到 auth-profiles.json..."',
+    'AUTH_DIR="$HOME/.openclaw/agents/main/agent"',
+    'mkdir -p "$AUTH_DIR"',
+    'cat > "$AUTH_DIR/auth-profiles.json" << \'AUTHEOF\'',
+    '{',
+    '  "anthropic": {',
+    '    "apiKey": "'+antKey+'"'+(base?',':''),
+  ];
+  if(base) s.push('    "baseUrl": "'+base+'"');
+  s.push('  }');
+  if(codexKey){
+    s=s.concat([
+      '  ,"codex": {',
+      '    "apiKey": "'+codexKey+'"',
+      '  }',
+    ]);
+  }
   s=s.concat([
-    'openclaw daemon install 2>/dev/null',
-    'openclaw start 2>/dev/null',
+    '}',
+    'AUTHEOF',
+    'echo "  已写入: $AUTH_DIR/auth-profiles.json"',
     'echo ""',
-    'echo "========================================"',
-    'echo "  OpenClaw 部署完成！"',
-    'echo "  API Key 和中转地址已自动配置"',
-    'echo "========================================"',
+    '',
+    'echo "[3/3] 启动 OpenClaw..."',
+    'export ANTHROPIC_API_KEY="'+antKey+'"',
+    'openclaw daemon install 2>/dev/null',
+    'openclaw gateway start 2>/dev/null &',
+    'sleep 2',
+    'openclaw tui 2>/dev/null || {',
+    '  echo ""',
+    '  echo "  OpenClaw 已安装并配置完成！"',
+    '  echo "  打开新终端运行: openclaw tui"',
+    '}',
   ]);
   return s.join('\n');
 }
-function genWin(key,base){
+function genWin(antKey,codexKey,base){
+  var authJson='{ "anthropic": { "apiKey": "'+antKey+'"';
+  if(base) authJson+=', "baseUrl": "'+base+'"';
+  authJson+=' }';
+  if(codexKey) authJson+=', "codex": { "apiKey": "'+codexKey+'" }';
+  authJson+=' }';
   var s=[
     '@echo off','chcp 65001 >nul','title OpenClaw 一键部署',
     'echo.','echo ========================================',
     'echo   OpenClaw 一键部署 (Windows)',
-    'echo   全自动安装，请勿关闭此窗口',
+    'echo   全自动安装+配置，请勿关闭此窗口',
     'echo ========================================','echo.',
     '',
-    'echo [1/3] 安装 OpenClaw（含 Node.js）...',
+    'echo [1/3] 安装 OpenClaw...',
     'powershell -ExecutionPolicy Bypass -Command "iwr -useb https://openclaw.ai/install.ps1 | iex"',
-    'echo   安装完成','echo.',
-    '',
-    'echo [2/3] 配置环境变量...',
-    'setx OPENAI_API_KEY "'+key+'" >nul',
-    'set "OPENAI_API_KEY='+key+'"',
-  ];
-  if(base){
-    s.push('setx OPENAI_API_BASE_URL "'+base+'" >nul');
-    s.push('set "OPENAI_API_BASE_URL='+base+'"');
-  }
-  s=s.concat([
     'echo   完成','echo.',
     '',
-    'echo [3/3] 写入配置并启动...',
-    'openclaw config set models.providers.openai.apiKey "'+key+'" 2>nul',
-  ]);
-  if(base) s.push('openclaw config set models.providers.openai.baseUrl "'+base+'" 2>nul');
-  s=s.concat([
+    'echo [2/3] 写入 API Key...',
+    'set "AUTH_DIR=%USERPROFILE%\\.openclaw\\agents\\main\\agent"',
+    'if not exist "%AUTH_DIR%" mkdir "%AUTH_DIR%"',
+    'echo '+authJson+' > "%AUTH_DIR%\\auth-profiles.json"',
+    'setx ANTHROPIC_API_KEY "'+antKey+'" >nul',
+    'echo   完成','echo.',
+    '',
+    'echo [3/3] 启动 OpenClaw...',
     'openclaw daemon install 2>nul',
-    'openclaw start 2>nul',
+    'start "" openclaw gateway start',
+    'timeout /t 2 /nobreak >nul',
+    'openclaw tui',
     'echo.','echo ========================================',
-    'echo   部署完成！API Key 和中转地址已自动配置',
-    'echo ========================================','echo.',
+    'echo   部署完成！','echo ========================================',
     'pause',
-  ]);
+  ];
   return s.join('\r\n');
 }
 function generate(){
   var msg=document.getElementById('msg'),guide=document.getElementById('guide');
-  var key=document.getElementById('apikey').value.trim();
+  var antKey=document.getElementById('antkey').value.trim();
+  var codexKey=document.getElementById('codexkey').value.trim();
   var base=document.getElementById('baseurl').value.trim().replace(/\/$/,'');
-  if(!key){msg.className='msg err';msg.textContent='请输入 API Key';return}
+  if(!antKey){msg.className='msg err';msg.textContent='请输入 Anthropic API Key';return}
   if(isMac){
-    var script=genMac(key,base);
+    var script=genMac(antKey,codexKey,base);
     var encoded=btoa(unescape(encodeURIComponent(script)));
     var cmd='echo '+encoded+' | base64 -d > /tmp/oc-install.sh && bash /tmp/oc-install.sh';
     guide.innerHTML='<h3>只需三步</h3><ol>'+
       '<li>按 <b>Command+空格</b>，输入 <b>Terminal</b>，回车打开终端</li>'+
       '<li>点下面的"复制"按钮</li>'+
-      '<li>在终端里 <b>Command+V</b> 粘贴，按回车</li></ol>'+
+      '<li>在终端里 <b>Command+V</b> 粘贴，按回车即可</li></ol>'+
       '<div class="cmd-box"><span id="mac-cmd" style="user-select:all;overflow:hidden;max-height:60px">'+cmd+'</span>'+
       '<button onclick="copyCmd(this)">复制</button></div>'+
-      '<p class="tip">全自动安装 Node.js + OpenClaw，比 Python 方案快很多</p>';
+      '<p class="tip">安装+配置全自动完成，终端里不需要输入任何东西</p>';
     guide.style.display='block';
     msg.className='msg ok';msg.textContent='命令已生成，复制到终端即可!';
   }else{
-    var script=genWin(key,base);
+    var script=genWin(antKey,codexKey,base);
     var blob=new Blob([script],{type:'application/octet-stream'});
     var a=document.createElement('a');
     a.href=URL.createObjectURL(blob);a.download='install-openclaw.bat';a.click();
     guide.innerHTML='<h3>只需两步</h3><ol>'+
       '<li>找到下载的 <b>install-openclaw.bat</b></li>'+
-      '<li>双击运行（如弹出安全提示，点"更多信息"→"仍要运行"）</li>'+
-      '<li>等待安装完成</li></ol>'+
-      '<p class="tip">首次安装约需 1-3 分钟，比旧版快很多</p>';
+      '<li>双击运行即可，全自动安装+配置</li></ol>'+
+      '<p class="tip">安装+配置全自动完成，不需要额外操作</p>';
     guide.style.display='block';
     msg.className='msg ok';msg.textContent='安装文件已下载!';
   }
