@@ -1,364 +1,189 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenClaw 一键部署</title>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, "Segoe UI", sans-serif;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .card {
-            text-align: center;
-            padding: 60px 40px;
-            max-width: 480px;
-            width: 100%;
-        }
-        h1 {
-            font-size: 2.5em;
-            background: linear-gradient(90deg, #ff6b6b, #ffa500);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 12px;
-        }
-        .sub { color: #888; margin-bottom: 40px; font-size: 1.1em; }
-        input {
-            width: 100%;
-            padding: 16px 20px;
-            font-size: 1em;
-            border: 2px solid rgba(255,255,255,0.15);
-            border-radius: 12px;
-            background: rgba(255,255,255,0.05);
-            color: #fff;
-            outline: none;
-            margin-bottom: 16px;
-            transition: border-color 0.3s;
-        }
-        input:focus { border-color: #ff6b6b; }
-        input::placeholder { color: #666; }
-        .btn {
-            width: 100%;
-            padding: 18px;
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #fff;
-            background: linear-gradient(90deg, #ff6b6b, #ee5a24);
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 20px rgba(255,107,107,0.4);
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 30px rgba(255,107,107,0.6);
-        }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .hint {
-            margin-top: 20px;
-            font-size: 0.85em;
-            color: #666;
-            line-height: 1.6;
-        }
-        .hint a { color: #ff6b6b; text-decoration: none; }
-        .done {
-            margin-top: 24px;
-            padding: 16px;
-            background: rgba(76,175,80,0.15);
-            border: 1px solid rgba(76,175,80,0.3);
-            border-radius: 10px;
-            display: none;
-            line-height: 1.8;
-            font-size: 0.95em;
-        }
-        .os-tag {
-            display: inline-block;
-            padding: 4px 14px;
-            border-radius: 20px;
-            font-size: 0.8em;
-            background: rgba(255,255,255,0.08);
-            color: #aaa;
-            margin-bottom: 30px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw 一键部署</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#1e293b;border-radius:16px;padding:40px;max-width:500px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+h1{text-align:center;font-size:28px;margin-bottom:6px}
+h1 span{color:#ef0011}
+.sub{text-align:center;color:#94a3b8;margin-bottom:30px;font-size:13px}
+.os-tag{display:block;text-align:center;padding:6px 0;margin-bottom:20px;font-size:12px;color:#64748b;border:1px solid #334155;border-radius:8px}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#cbd5e1}
+.fg{margin-bottom:16px}
+input{width:100%;padding:12px 14px;border:2px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:13px;outline:none;transition:border-color .2s}
+input:focus{border-color:#ef0011}
+input::placeholder{color:#475569}
+.btn{width:100%;padding:16px;border:none;border-radius:10px;background:linear-gradient(135deg,#ef0011,#ff4444);color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:opacity .2s;box-shadow:0 4px 20px rgba(239,0,17,.3)}
+.btn:hover{opacity:.9}
+.msg{text-align:center;margin-top:12px;font-size:13px;min-height:18px}
+.msg.ok{color:#4ade80}.msg.err{color:#f87171}
+.guide{margin-top:16px;background:#0f172a;border-radius:10px;padding:16px;border:1px solid #334155;display:none}
+.guide h3{font-size:14px;margin-bottom:10px;color:#ef0011}
+.guide ol{padding-left:18px;font-size:13px;line-height:2.2;color:#cbd5e1}
+.cmd-box{display:flex;align-items:center;gap:8px;margin:8px 0;background:#1e293b;border-radius:8px;padding:10px 14px;font-family:monospace;font-size:11px;color:#4ade80;word-break:break-all}
+.cmd-box button{flex-shrink:0;padding:4px 10px;border:1px solid #475569;border-radius:6px;background:#334155;color:#e2e8f0;cursor:pointer;font-size:11px}
+.tip{color:#94a3b8;font-size:12px;margin-top:8px;line-height:1.6}
 </style>
 </head>
 <body>
-    <div class="card">
-        <h1>OpenClaw</h1>
-        <p class="sub">一键部署你的私人 AI 助手</p>
-        <p class="os-tag" id="osTag"></p>
-        <div class="form-group">
-            <input type="text" id="apiKey" placeholder="粘贴你的 API Key（支持 OpenAI / Claude / Gemini）">
-            <button class="btn" id="installBtn" onclick="generate()">一键安装</button>
-            <div class="hint">
-                没有 API Key？去
-                <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI</a> /
-                <a href="https://console.anthropic.com/" target="_blank">Anthropic</a> /
-                <a href="https://aistudio.google.com/apikey" target="_blank">Gemini</a>
-                免费注册获取
-            </div>
-            <div class="done" id="done">
-                安装包已下载！<br>
-                1. 解压下载的 zip 文件<br>
-                2. 双击里面的安装脚本运行<br>
-                3. 如弹出安全提示，点"更多信息" → "仍要运行"<br>
-                4. 等几分钟自动装好，全程不用管
-            </div>
-        </div>
-    </div>
+<div class="card">
+  <h1>🦞 OpenClaw <span>一键部署</span></h1>
+  <p class="sub">输入 API Key，全自动安装，无需 Docker</p>
+  <p class="os-tag" id="osTag"></p>
+  <div class="fg">
+    <label>API Key</label>
+    <input type="password" id="apikey" placeholder="输入你的 API Key">
+  </div>
+  <div class="fg">
+    <label>中转地址 <span style="color:#475569;font-weight:400">（可选）</span></label>
+    <input type="text" id="baseurl" placeholder="例如 https://api.example.com/v1">
+  </div>
+  <button class="btn" onclick="generate()">🚀 一键部署</button>
+  <p id="msg" class="msg"></p>
+  <div id="guide" class="guide"></div>
+</div>
 <script>
-var isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-var osTag = document.getElementById('osTag');
-osTag.textContent = isMac ? '检测到 macOS' : '检测到 Windows';
+var isMac = /Mac/.test(navigator.platform);
+document.getElementById('osTag').textContent = isMac ? '🍎 检测到 macOS — 将生成终端命令' : '🪟 检测到 Windows — 将下载安装脚本';
 
-var doneEl = document.getElementById('done');
-if (isMac) {
-    doneEl.innerHTML = '脚本已下载！<br>' +
-        '1. 打开"终端"应用<br>' +
-        '2. 输入 <b>bash ~/Downloads/install-openclaw.sh</b> 回车<br>' +
-        '3. 等几分钟自动装好，全程不用管';
-}
-
-function detectProvider(key) {
-    if (key.startsWith('sk-ant-')) return ['ANTHROPIC_API_KEY', 'Claude'];
-    if (key.startsWith('sk-')) return ['OPENAI_API_KEY', 'OpenAI'];
-    if (key.startsWith('AI')) return ['GEMINI_API_KEY', 'Gemini'];
-    return ['OPENAI_API_KEY', 'AI'];
-}
-
-function generateMac(keyName, key, provider) {
-    return [
-        '#!/bin/bash',
-        'set -e',
-        'echo ""',
-        'echo "========================================"',
-        'echo "  OpenClaw 一键部署 (macOS)"',
-        'echo "  AI 模型: ' + provider + '"',
-        'echo "========================================"',
-        'echo ""',
-        '',
-        '# 安装 Docker',
-        'if command -v docker &>/dev/null; then',
-        '    echo "[OK] Docker 已安装"',
-        'else',
-        '    echo "[!] 正在安装 Docker Desktop..."',
-        '    if command -v brew &>/dev/null; then',
-        '        brew install --cask docker',
-        '    else',
-        '        echo "[!] 正在下载 Docker Desktop..."',
-        '        ARCH=$(uname -m)',
-        '        if [ "$ARCH" = "arm64" ]; then',
-        '            curl -fsSL -o /tmp/Docker.dmg "https://desktop.docker.com/mac/main/arm64/Docker.dmg"',
-        '        else',
-        '            curl -fsSL -o /tmp/Docker.dmg "https://desktop.docker.com/mac/main/amd64/Docker.dmg"',
-        '        fi',
-        '        hdiutil attach /tmp/Docker.dmg -quiet',
-        '        cp -R "/Volumes/Docker/Docker.app" /Applications/',
-        '        hdiutil detach "/Volumes/Docker" -quiet',
-        '        rm /tmp/Docker.dmg',
-        '    fi',
-        '    echo "[OK] Docker 已安装"',
-        '    echo "[!] 正在启动 Docker Desktop..."',
-        '    open -a Docker',
-        '    echo "    等待启动（约60秒）..."',
-        '    sleep 60',
-        'fi',
-        '',
-        'docker info &>/dev/null || {',
-        '    echo "[!] 启动 Docker Desktop..."',
-        '    open -a Docker',
-        '    sleep 60',
-        '}',
-        '',
-        'echo "[2/4] 下载 OpenClaw..."',
-        'INSTALL_DIR="$HOME/openclaw"',
-        'if [ ! -d "$INSTALL_DIR" ]; then',
-        '    git clone --depth 1 https://github.com/openclaw/openclaw.git "$INSTALL_DIR" 2>/dev/null || {',
-        '        curl -fsSL -o /tmp/openclaw.zip https://github.com/openclaw/openclaw/archive/refs/heads/main.zip',
-        '        unzip -q /tmp/openclaw.zip -d /tmp/oc',
-        '        mv /tmp/oc/openclaw-main "$INSTALL_DIR"',
-        '    }',
-        'fi',
-        '',
-        'echo "[3/4] 生成配置..."',
-        'CONFIG_DIR="$HOME/.openclaw"',
-        'WORKSPACE_DIR="$HOME/.openclaw/workspace"',
-        'mkdir -p "$CONFIG_DIR/identity"',
-        'mkdir -p "$CONFIG_DIR/agents/main/agent"',
-        'mkdir -p "$CONFIG_DIR/agents/main/sessions"',
-        'mkdir -p "$WORKSPACE_DIR"',
-        '',
-        'GW_TOKEN=$(openssl rand -hex 32 2>/dev/null || cat /dev/urandom | LC_ALL=C tr -dc a-f0-9 | head -c 64)',
-        'cat > "$INSTALL_DIR/.env" << EOF',
-        keyName + '=' + key,
-        'OPENCLAW_CONFIG_DIR=$CONFIG_DIR',
-        'OPENCLAW_WORKSPACE_DIR=$WORKSPACE_DIR',
-        'OPENCLAW_GATEWAY_TOKEN=$GW_TOKEN',
-        'OPENCLAW_GATEWAY_BIND=localhost',
-        'OPENCLAW_IMAGE=openclaw:local',
-        'EOF',
-        '',
-        'echo "[4/4] 构建并启动 OpenClaw（首次约5-10分钟）..."',
-        'cd "$INSTALL_DIR"',
-        'docker build -t openclaw:local -f Dockerfile .',
-        'docker compose up -d',
-        '',
-        'echo ""',
-        'echo "========================================"',
-        'echo "  部署完成！OpenClaw 已在后台运行"',
-        'echo "========================================"',
-        'echo ""',
-        'echo "Gateway Token: $GW_TOKEN"',
-        'echo "请保存此 Token，用于访问认证"',
-        'echo ""',
-        'echo "如需停止: cd ~/openclaw && docker compose down"',
-        'echo ""',
-    ].join('\n');
-}
-
-function generateWin(keyName, key, provider) {
-    var lines = [
-        '@echo off',
-        'chcp 65001 >nul 2>&1',
-        'title OpenClaw 一键部署',
-        'color 0A',
-        'echo.',
-        'echo  ========================================',
-        'echo    OpenClaw 一键部署中，请勿关闭此窗口',
-        'echo    AI 模型: ' + provider,
-        'echo  ========================================',
-        'echo.',
-        '',
-        'net session >nul 2>&1',
-        'if %errorlevel% neq 0 (',
-        '    echo [!] 需要管理员权限...',
-        '    powershell -Command "Start-Process \'%~f0\' -Verb RunAs"',
-        '    exit /b',
-        ')',
-        '',
-        'echo [1/4] 检查 Docker...',
-        'docker --version >nul 2>&1',
-        'if %errorlevel% neq 0 goto :install_docker',
-        'echo [OK] Docker 已安装',
-        'goto :check_running',
-        '',
-        ':install_docker',
-        'echo [!] 正在下载 Docker Desktop...',
-        'powershell -Command "Invoke-WebRequest -Uri \'https://desktop.docker.com/win/main/amd64/Docker%%20Desktop%%20Installer.exe\' -OutFile \'%TEMP%\\DockerInstaller.exe\'"',
-        'if %errorlevel% neq 0 (',
-        '    echo [X] 下载失败，请检查网络',
-        '    pause & exit /b 1',
-        ')',
-        'echo [!] 正在安装 Docker Desktop...',
-        '"%TEMP%\\DockerInstaller.exe" install --quiet --accept-license',
-        'echo.',
-        'echo [OK] Docker 已安装，请重启电脑后再次双击此脚本',
-        'pause & exit /b 0',
-        '',
-        ':check_running',
-        'docker info >nul 2>&1',
-        'if %errorlevel% equ 0 goto :deploy',
-        'echo [!] 正在启动 Docker...',
-        'start "" "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"',
-        'echo     等待启动（约60秒）...',
-        'timeout /t 60 /nobreak >nul',
-        'docker info >nul 2>&1',
-        'if %errorlevel% neq 0 (',
-        '    echo [!] Docker 还在启动，再等30秒...',
-        '    timeout /t 30 /nobreak >nul',
-        ')',
-        '',
-        ':deploy',
-        'echo.',
-        'echo [2/4] 下载 OpenClaw...',
-        'set INSTALL_DIR=%USERPROFILE%\\openclaw',
-        'if not exist "%INSTALL_DIR%" (',
-        '    git clone --depth 1 https://github.com/openclaw/openclaw.git "%INSTALL_DIR%" 2>nul',
-        '    if not exist "%INSTALL_DIR%\\docker-compose.yml" (',
-        '        echo [!] 使用备用方式下载...',
-        '        powershell -Command "Invoke-WebRequest -Uri \'https://github.com/openclaw/openclaw/archive/refs/heads/main.zip\' -OutFile \'%TEMP%\\openclaw.zip\'"',
-        '        powershell -Command "Expand-Archive -Path \'%TEMP%\\openclaw.zip\' -DestinationPath \'%TEMP%\\oc\' -Force"',
-        '        if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"',
-        '        move "%TEMP%\\oc\\openclaw-main" "%INSTALL_DIR%"',
-        '    )',
-        ')',
-        '',
-        'echo [3/4] 生成配置...',
-        'set CONFIG_DIR=%USERPROFILE%\\.openclaw',
-        'set WORKSPACE_DIR=%USERPROFILE%\\.openclaw\\workspace',
-        'if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%"',
-        'if not exist "%CONFIG_DIR%\\identity" mkdir "%CONFIG_DIR%\\identity"',
-        'if not exist "%CONFIG_DIR%\\agents\\main\\agent" mkdir "%CONFIG_DIR%\\agents\\main\\agent"',
-        'if not exist "%CONFIG_DIR%\\agents\\main\\sessions" mkdir "%CONFIG_DIR%\\agents\\main\\sessions"',
-        'if not exist "%WORKSPACE_DIR%" mkdir "%WORKSPACE_DIR%"',
-        '',
-        'for /f "tokens=*" %%a in (\'powershell -Command "[guid]::NewGuid().ToString(\'N\')"\') do set GW_TOKEN=%%a',
-        '(',
-        'echo ' + keyName + '=' + key,
-        'echo OPENCLAW_CONFIG_DIR=%CONFIG_DIR%',
-        'echo OPENCLAW_WORKSPACE_DIR=%WORKSPACE_DIR%',
-        'echo OPENCLAW_GATEWAY_TOKEN=%GW_TOKEN%',
-        'echo OPENCLAW_GATEWAY_BIND=localhost',
-        'echo OPENCLAW_IMAGE=openclaw:local',
-        ') > "%INSTALL_DIR%\\.env"',
-        '',
-        'echo [4/4] 构建并启动 OpenClaw（首次约5-10分钟）...',
-        'cd /d "%INSTALL_DIR%"',
-        'docker build -t openclaw:local -f Dockerfile . ',
-        'if %errorlevel% neq 0 (',
-        '    echo [X] 构建失败，请检查网络后重试',
-        '    pause & exit /b 1',
-        ')',
-        'docker compose up -d',
-        '',
-        'echo.',
-        'echo  ========================================',
-        'echo    部署完成！OpenClaw 已在后台运行',
-        'echo  ========================================',
-        'echo.',
-        'echo  Gateway Token: %GW_TOKEN%',
-        'echo  请保存此 Token，用于访问认证',
-        'echo.',
-        'echo  如需停止: cd %USERPROFILE%\\openclaw ^& docker compose down',
-        'echo.',
-        'pause',
-    ];
-    return lines.join('\r\n');
+function copyCmd(text, btn) {
+  navigator.clipboard.writeText(text);
+  btn.textContent = '已复制!';
+  setTimeout(function(){ btn.textContent = '复制'; }, 1500);
 }
 
 function generate() {
-    var key = document.getElementById('apiKey').value.trim();
-    if (!key) { alert('请先填写 API Key'); return; }
+  var msg = document.getElementById('msg');
+  var guide = document.getElementById('guide');
+  var key = document.getElementById('apikey').value.trim();
+  var base = document.getElementById('baseurl').value.trim().replace(/\/$/,'');
+  if (!key) { msg.className='msg err'; msg.textContent='请输入 API Key'; return; }
+  var openaiBase = base || 'https://api.openai.com/v1';
+  if (isMac) {
+    var script = genMac(key, openaiBase);
+    var encoded = btoa(unescape(encodeURIComponent(script)));
+    var cmd = 'echo ' + encoded + ' | base64 -d | bash';
+    guide.innerHTML = '<h3>复制到终端即可</h3><ol>' +
+      '<li>按 <b>Command+空格</b>，输入 Terminal，回车</li>' +
+      '<li>粘贴下面的命令，按回车：</li></ol>' +
+      '<div class="cmd-box"><span id="mac-cmd" style="user-select:all">' + cmd + '</span>' +
+      '<button onclick="copyCmd(document.getElementById(\'mac-cmd\').textContent,this)">复制</button></div>' +
+      '<p class="tip">全自动安装所有依赖，完成后浏览器自动打开</p>';
+    guide.style.display = 'block';
+    msg.className='msg ok'; msg.textContent='命令已生成!';
+  } else {
+    var script = genWin(key, openaiBase);
+    var blob = new Blob([script], {type:'application/octet-stream'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'install-openclaw.bat'; a.click();
+    guide.innerHTML = '<h3>下一步</h3><ol>' +
+      '<li>找到下载的 <b>install-openclaw.bat</b></li>' +
+      '<li>双击运行（如弹出安全提示，点"更多信息"→"仍要运行"）</li>' +
+      '<li>等待安装完成，浏览器自动打开</li></ol>' +
+      '<p class="tip">首次安装约需 2-5 分钟，请保持网络畅通</p>';
+    guide.style.display = 'block';
+    msg.className='msg ok'; msg.textContent='脚本已下载!';
+  }
+}
 
-    var info = detectProvider(key);
-    var keyName = info[0], provider = info[1];
+function genMac(key, base) {
+  return [
+    '#!/bin/bash',
+    'set -e',
+    'echo ""',
+    'echo "========================================"',
+    'echo "  OpenClaw 一键部署 (macOS)"',
+    'echo "  全自动安装，无需任何额外操作"',
+    'echo "========================================"',
+    'echo ""',
+    '',
+    'ARCH=$(uname -m)',
+    '',
+    '# Intel Mac 需要 Homebrew + 编译依赖',
+    'if [ "$ARCH" != "arm64" ]; then',
+    '  echo "[1/4] 检查 Homebrew..."',
+    '  if ! command -v brew &>/dev/null; then',
+    '    echo "  正在安装 Homebrew（可能需要输入密码）..."',
+    '    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+    '    eval "$(/usr/local/bin/brew shellenv)"',
+    '  fi',
+    '  echo "  Homebrew 已就绪"',
+    '  echo ""',
+    '  echo "[2/4] 安装编译依赖..."',
+    '  brew install pkg-config ffmpeg 2>/dev/null || true',
+    '  echo "  依赖已就绪"',
+    'else',
+    '  echo "[1/4] Apple Silicon，跳过编译依赖"',
+    '  echo "[2/4] 跳过"',
+    'fi',
+    'echo ""',
+    '',
+    'echo "[3/4] 安装 uv 包管理器..."',
+    'if ! command -v uv &>/dev/null; then',
+    '  curl -LsSf https://astral.sh/uv/install.sh | sh',
+    '  export PATH="$HOME/.local/bin:$PATH"',
+    'fi',
+    'echo "  uv 已就绪"',
+    'echo ""',
+    '',
+    'echo "[4/4] 配置并启动 OpenClaw..."',
+    'export OPENAI_API_KEY="' + key + '"',
+    'export OPENAI_API_BASE_URL="' + base + '"',
+    'export DATA_DIR="$HOME/.open-webui"',
+    'grep -q "OPENAI_API_KEY" ~/.zshrc 2>/dev/null || {',
+    '  echo \'export OPENAI_API_KEY="' + key + '"\' >> ~/.zshrc',
+    '  echo \'export OPENAI_API_BASE_URL="' + base + '"\' >> ~/.zshrc',
+    '}',
+    'echo "  首次启动需下载依赖，请耐心等待..."',
+    'echo "  启动后浏览器将自动打开 http://localhost:8080"',
+    'echo ""',
+    'sleep 15 && open "http://localhost:8080/" &',
+    '',
+    'if [ "$ARCH" = "arm64" ]; then',
+    '  DATA_DIR="$HOME/.open-webui" uvx --python 3.11 open-webui@latest serve',
+    'else',
+    '  uv venv --python 3.11 "$HOME/.open-webui-env"',
+    '  source "$HOME/.open-webui-env/bin/activate"',
+    '  uv pip install "onnxruntime<1.24"',
+    '  uv pip install open-webui --resolution lowest-direct',
+    '  DATA_DIR="$HOME/.open-webui" open-webui serve',
+    'fi',
+  ].join('\n');
+}
 
-    var content, filename;
-    if (isMac) {
-        content = generateMac(keyName, key, provider);
-        filename = 'install-openclaw.sh';
-    } else {
-        content = generateWin(keyName, key, provider);
-        filename = 'install-openclaw.bat';
-    }
-
-    var zip = new JSZip();
-    zip.file(filename, content);
-    zip.generateAsync({ type: 'blob' }).then(function(blob) {
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'openclaw-installer.zip';
-        a.click();
-        document.getElementById('done').style.display = 'block';
-    });
+function genWin(key, base) {
+  return [
+    '@echo off','chcp 65001 >nul','title OpenClaw 一键部署',
+    'echo.','echo ========================================',
+    'echo   OpenClaw 一键部署 (Windows)',
+    'echo   无需 Docker，轻量安装',
+    'echo ========================================','echo.',
+    '',
+    'echo [1/3] 安装 uv 包管理器...',
+    'where uv >nul 2>nul',
+    'if %errorlevel% equ 0 (','  echo   uv 已安装','  goto :uv_ok',')',
+    'powershell -ExecutionPolicy ByPass -Command "irm https://astral.sh/uv/install.ps1 | iex"',
+    'set "PATH=%USERPROFILE%\\.local\\bin;%PATH%"',
+    ':uv_ok','echo   完成','echo.',
+    '',
+    'echo [2/3] 配置环境变量...',
+    'setx OPENAI_API_KEY "' + key + '" >nul',
+    'setx OPENAI_API_BASE_URL "' + base + '" >nul',
+    'set "OPENAI_API_KEY=' + key + '"',
+    'set "OPENAI_API_BASE_URL=' + base + '"',
+    'set "DATA_DIR=%USERPROFILE%\\.open-webui"',
+    'echo   完成','echo.',
+    '',
+    'echo [3/3] 启动 OpenClaw...',
+    'echo   首次启动需下载依赖，请耐心等待...',
+    'echo   启动后浏览器将自动打开 http://localhost:8080','echo.',
+    'start /b cmd /c "timeout /t 20 /nobreak >nul && start http://localhost:8080/"',
+    'uvx --python 3.11 open-webui@latest serve',
+  ].join('\r\n');
 }
 </script>
 </body>
