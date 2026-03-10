@@ -24,8 +24,6 @@ input::placeholder{color:#475569}
 .guide{margin-top:16px;background:#0f172a;border-radius:10px;padding:16px;border:1px solid #334155;display:none}
 .guide h3{font-size:14px;margin-bottom:10px;color:#ef0011}
 .guide ol{padding-left:18px;font-size:13px;line-height:2.2;color:#cbd5e1}
-.cmd-box{display:flex;align-items:center;gap:8px;margin:8px 0;background:#1e293b;border-radius:8px;padding:10px 14px;font-family:monospace;font-size:11px;color:#4ade80;word-break:break-all}
-.cmd-box button{flex-shrink:0;padding:4px 10px;border:1px solid #475569;border-radius:6px;background:#334155;color:#e2e8f0;cursor:pointer;font-size:11px}
 .tip{color:#94a3b8;font-size:12px;margin-top:8px;line-height:1.6}
 </style>
 </head>
@@ -48,13 +46,7 @@ input::placeholder{color:#475569}
 </div>
 <script>
 var isMac = /Mac/.test(navigator.platform);
-document.getElementById('osTag').textContent = isMac ? '🍎 检测到 macOS — 将生成终端命令' : '🪟 检测到 Windows — 将下载安装脚本';
-
-function copyCmd(text, btn) {
-  navigator.clipboard.writeText(text);
-  btn.textContent = '已复制!';
-  setTimeout(function(){ btn.textContent = '复制'; }, 1500);
-}
+document.getElementById('osTag').textContent = isMac ? '🍎 检测到 macOS' : '🪟 检测到 Windows';
 
 function generate() {
   var msg = document.getElementById('msg');
@@ -63,31 +55,30 @@ function generate() {
   var base = document.getElementById('baseurl').value.trim().replace(/\/$/,'');
   if (!key) { msg.className='msg err'; msg.textContent='请输入 API Key'; return; }
   var openaiBase = base || 'https://api.openai.com/v1';
+  var script, filename, guideHtml;
   if (isMac) {
-    var script = genMac(key, openaiBase);
-    var encoded = btoa(unescape(encodeURIComponent(script)));
-    var cmd = 'echo ' + encoded + ' | base64 -d | bash';
-    guide.innerHTML = '<h3>复制到终端即可</h3><ol>' +
-      '<li>按 <b>Command+空格</b>，输入 Terminal，回车</li>' +
-      '<li>粘贴下面的命令，按回车：</li></ol>' +
-      '<div class="cmd-box"><span id="mac-cmd" style="user-select:all">' + cmd + '</span>' +
-      '<button onclick="copyCmd(document.getElementById(\'mac-cmd\').textContent,this)">复制</button></div>' +
-      '<p class="tip">全自动安装所有依赖，完成后浏览器自动打开</p>';
-    guide.style.display = 'block';
-    msg.className='msg ok'; msg.textContent='命令已生成!';
+    script = genMac(key, openaiBase);
+    filename = 'install-openclaw.command';
+    guideHtml = '<h3>只需两步</h3><ol>' +
+      '<li>找到下载的 <b>install-openclaw.command</b></li>' +
+      '<li>双击运行（首次可能需要右键→打开）</li>' +
+      '<li>等待安装完成，浏览器自动打开</li></ol>' +
+      '<p class="tip">如提示"无法验证开发者"：右键文件→打开→点"打开"即可</p>';
   } else {
-    var script = genWin(key, openaiBase);
-    var blob = new Blob([script], {type:'application/octet-stream'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'install-openclaw.bat'; a.click();
-    guide.innerHTML = '<h3>下一步</h3><ol>' +
+    script = genWin(key, openaiBase);
+    filename = 'install-openclaw.bat';
+    guideHtml = '<h3>只需两步</h3><ol>' +
       '<li>找到下载的 <b>install-openclaw.bat</b></li>' +
       '<li>双击运行（如弹出安全提示，点"更多信息"→"仍要运行"）</li>' +
       '<li>等待安装完成，浏览器自动打开</li></ol>' +
       '<p class="tip">首次安装约需 2-5 分钟，请保持网络畅通</p>';
-    guide.style.display = 'block';
-    msg.className='msg ok'; msg.textContent='脚本已下载!';
   }
+  var blob = new Blob([script], {type:'application/octet-stream'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  guide.innerHTML = guideHtml;
+  guide.style.display = 'block';
+  msg.className='msg ok'; msg.textContent='安装文件已下载!';
 }
 
 function genMac(key, base) {
